@@ -27,7 +27,7 @@ namespace AspNetCoreRateLimit
 
         public void Set(string id, ClientRateLimitPolicy policy)
         {
-            _memoryCache.Set(id, policy);
+            _memoryCache.Set(id, policy, new MemoryCacheEntryOptions().SetPriority(CacheItemPriority.NeverRemove));
         }
 
         public bool Exists(string id)

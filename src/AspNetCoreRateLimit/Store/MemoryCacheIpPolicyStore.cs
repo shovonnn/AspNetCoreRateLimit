@@ -9,8 +9,8 @@ namespace AspNetCoreRateLimit
     {
         private readonly IMemoryCache _memoryCache;
 
-        public MemoryCacheIpPolicyStore(IMemoryCache memoryCache, 
-            IOptions<IpRateLimitOptions> options = null, 
+        public MemoryCacheIpPolicyStore(IMemoryCache memoryCache,
+            IOptions<IpRateLimitOptions> options = null,
             IOptions<IpRateLimitPolicies> policies = null)
         {
             _memoryCache = memoryCache;
@@ -25,7 +25,7 @@ namespace AspNetCoreRateLimit
 
         public void Set(string id, IpRateLimitPolicies policy)
         {
-            _memoryCache.Set(id, policy);
+            _memoryCache.Set(id, policy, new MemoryCacheEntryOptions().SetPriority(CacheItemPriority.NeverRemove));
         }
 
         public bool Exists(string id)
