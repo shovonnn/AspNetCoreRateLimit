@@ -20,7 +20,9 @@ namespace AspNetCoreRateLimit
             foreach (var opt in operations)
             {
                 trans.AddCondition(Condition.KeyNotExists(opt.Key));
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 trans.StringSetAsync(opt.Key, opt.Value, opt.ExpiresIn);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             }
             return await trans.ExecuteAsync();
         }
@@ -31,7 +33,9 @@ namespace AspNetCoreRateLimit
             foreach (var opt in operations)
             {
                 trans.AddCondition(Condition.StringEqual(opt.Key, opt.OldValue));
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 trans.StringSetAsync(opt.Key, opt.NewValue, opt.NewExpiresIn);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             }
             return await trans.ExecuteAsync();
         }
@@ -43,9 +47,14 @@ namespace AspNetCoreRateLimit
             return value;
         }
 
-        public async Task Increament(string key)
+        public async Task<bool> Increament(string key)
         {
-            await Database.StringIncrementAsync(key);
+            var trans = Database.CreateTransaction();
+            trans.AddCondition(Condition.KeyExists(key));
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            trans.StringIncrementAsync(key);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            return await trans.ExecuteAsync();
         }
     }
 }

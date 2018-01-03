@@ -47,7 +47,7 @@ namespace AspNetCoreRateLimit
             return BitConverter.ToString(hashBytes).Replace("-", string.Empty);
         }
 
-        public async Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
+        public async Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule, int retryAttempt = 0)
         {
 
             var counterId = ComputeCounterKey(requestIdentity, rule);
@@ -59,15 +59,18 @@ namespace AspNetCoreRateLimit
                 if (entry.Value.Timestamp + rule.PeriodTimespan.Value >= DateTime.UtcNow)
                 {
                     // increment request count
-                    return await _counterStore.IncrementAsync(counterId, entry.Value.Timestamp);
+                    return await _counterStore.IncrementAsync(counterId, entry.Value);
                 }
                 try
                 {
-                    return await _counterStore.ResetCounter(counterId, rule.PeriodTimespan.Value);
+                    return await _counterStore.ResetCounter(counterId, entry.Value, rule.PeriodTimespan.Value);
                 }
                 catch (ConcurrencyException)
                 {
-                    return await ProcessRequest(requestIdentity, rule);
+                    if (retryAttempt < 3)
+                        return await ProcessRequest(requestIdentity, rule, retryAttempt + 1);
+                    else
+                        return _maxxedOutCounter();
                 }
             }
             try
@@ -76,9 +79,14 @@ namespace AspNetCoreRateLimit
             }
             catch (ConcurrencyException)
             {
-                return await ProcessRequest(requestIdentity, rule);
+                if (retryAttempt < 3)
+                    return await ProcessRequest(requestIdentity, rule, retryAttempt + 1);
+                else
+                    return _maxxedOutCounter();
             }
         }
+
+        static RateLimitCounter _maxxedOutCounter() => new RateLimitCounter() { Timestamp = DateTime.UtcNow, TotalRequests = int.MaxValue };
 
         public async Task<RateLimitHeaders> GetRateLimitHeaders(ClientRequestIdentity requestIdentity, RateLimitRule rule)
         {
