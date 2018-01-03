@@ -16,9 +16,9 @@ namespace AspNetCoreRateLimit
         private readonly IpRateLimitProcessor _processor;
         private readonly IpRateLimitOptions _options;
 
-        public IpRateLimitMiddleware(RequestDelegate next, 
+        public IpRateLimitMiddleware(RequestDelegate next,
             IOptions<IpRateLimitOptions> options,
-            IRateLimitCounterStore counterStore,
+            IRateLimitCounterStoreAsync counterStore,
             IIpPolicyStore policyStore,
             ILogger<IpRateLimitMiddleware> logger,
             IIpAddressParser ipParser = null
@@ -58,7 +58,7 @@ namespace AspNetCoreRateLimit
                 if (rule.Limit > 0)
                 {
                     // increment counter
-                    var counter = _processor.ProcessRequest(identity, rule);
+                    var counter = await _processor.ProcessRequest(identity, rule);
 
                     // check if key expired
                     if (counter.Timestamp + rule.PeriodTimespan.Value < DateTime.UtcNow)
@@ -86,7 +86,7 @@ namespace AspNetCoreRateLimit
             if (rules.Any() && !_options.DisableRateLimitHeaders)
             {
                 var rule = rules.OrderByDescending(x => x.PeriodTimespan.Value).First();
-                var headers = _processor.GetRateLimitHeaders(identity, rule);
+                var headers = await _processor.GetRateLimitHeaders(identity, rule);
                 headers.Context = httpContext;
 
                 httpContext.Response.OnStarting(SetRateLimitHeaders, state: headers);
@@ -98,7 +98,7 @@ namespace AspNetCoreRateLimit
         public virtual ClientRequestIdentity SetIdentity(HttpContext httpContext)
         {
             var clientId = "anon";
-            if (httpContext.Request.Headers.Keys.Contains(_options.ClientIdHeader,StringComparer.CurrentCultureIgnoreCase))
+            if (httpContext.Request.Headers.Keys.Contains(_options.ClientIdHeader, StringComparer.CurrentCultureIgnoreCase))
             {
                 clientId = httpContext.Request.Headers[_options.ClientIdHeader].First();
             }
@@ -107,7 +107,7 @@ namespace AspNetCoreRateLimit
             try
             {
                 var ip = _ipParser.GetClientIp(httpContext);
-                if(ip == null)
+                if (ip == null)
                 {
                     throw new Exception("IpRateLimitMiddleware can't parse caller IP");
                 }

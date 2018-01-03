@@ -1,20 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace AspNetCoreRateLimit
 {
     public class ClientRateLimitProcessor
     {
         private readonly ClientRateLimitOptions _options;
-        private readonly IRateLimitCounterStore _counterStore;
+        private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly IClientPolicyStore _policyStore;
         private readonly RateLimitCore _core;
 
         private static readonly object _processLocker = new object();
 
         public ClientRateLimitProcessor(ClientRateLimitOptions options,
-           IRateLimitCounterStore counterStore,
+           IRateLimitCounterStoreAsync counterStore,
            IClientPolicyStore policyStore)
         {
             _options = options;
@@ -79,7 +80,7 @@ namespace AspNetCoreRateLimit
                 foreach (var generalLimit in generalLimits)
                 {
                     // add general rule if no specific rule is declared for the specified period
-                    if(!limits.Exists(l => l.Period == generalLimit.Period))
+                    if (!limits.Exists(l => l.Period == generalLimit.Period))
                     {
                         limits.Add(generalLimit);
                     }
@@ -93,9 +94,9 @@ namespace AspNetCoreRateLimit
             }
 
             limits = limits.OrderBy(l => l.PeriodTimespan).ToList();
-            if(_options.StackBlockedRequests)
+            if (_options.StackBlockedRequests)
             {
-                limits.Reverse();   
+                limits.Reverse();
             }
 
             return limits;
@@ -118,12 +119,12 @@ namespace AspNetCoreRateLimit
             return false;
         }
 
-        public RateLimitCounter ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
+        public Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
         {
             return _core.ProcessRequest(requestIdentity, rule);
         }
 
-        public RateLimitHeaders GetRateLimitHeaders(ClientRequestIdentity requestIdentity, RateLimitRule rule)
+        public Task<RateLimitHeaders> GetRateLimitHeaders(ClientRequestIdentity requestIdentity, RateLimitRule rule)
         {
             return _core.GetRateLimitHeaders(requestIdentity, rule);
         }
