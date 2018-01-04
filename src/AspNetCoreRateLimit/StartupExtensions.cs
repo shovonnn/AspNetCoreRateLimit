@@ -12,21 +12,21 @@ namespace AspNetCoreRateLimit
         {
             services.AddSingleton<IRateLimitCounterStoreAsync, RateLimitCounterStoreAsync>();
             services.AddMemoryCache();
-            if (config.GetSection("IpRateLimiting").Value != null)
+            if (config.GetSection("IpRateLimiting").GetValue<bool>("Enabled"))
             {
                 services.Configure<IpRateLimitOptions>(config.GetSection("IpRateLimiting"));
 
-                if (config.GetSection("IpRateLimitPolicies").Value != null)
+                if (config.GetSection("IpRateLimitPolicies").GetValue<bool>("Enabled"))
                     services.Configure<IpRateLimitPolicies>(config.GetSection("IpRateLimitPolicies"));
 
                 // inject counter and rules stores
                 services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
             }
-            if (config.GetSection("ClientRateLimiting").Value != null)
+            if (config.GetSection("ClientRateLimiting").GetValue<bool>("Enabled"))
             {
                 services.Configure<ClientRateLimitOptions>(config.GetSection("ClientRateLimiting"));
 
-                if (config.GetSection("ClientRateLimitPolicies").Value != null)
+                if (config.GetSection("ClientRateLimitPolicies").GetValue<bool>("Enabled"))
                     services.Configure<ClientRateLimitPolicies>(config.GetSection("ClientRateLimitPolicies"));
 
                 // inject counter and rules stores
@@ -36,12 +36,12 @@ namespace AspNetCoreRateLimit
         public static void AddMemoryBasedRateLimit(this IServiceCollection services, IConfiguration config)
         {
             services.AddRateLimiting(config);
-            services.AddScoped<ICacheClient, MemoryCacheClient>();
+            services.AddSingleton<ICacheClient, MemoryCacheClient>();
         }
         public static void AddRedisBasedRateLimit(this IServiceCollection services, IConfiguration config, Func<ConnectionMultiplexer> redisFactory)
         {
             services.AddRateLimiting(config);
-            services.AddScoped<ICacheClient>((arg) => new RedisCacheClient(redisFactory.Invoke()));
+            services.AddSingleton<ICacheClient>((arg) => new RedisCacheClient(redisFactory.Invoke()));
         }
 
         public static IApplicationBuilder UseIpRateLimiting(this IApplicationBuilder builder)
