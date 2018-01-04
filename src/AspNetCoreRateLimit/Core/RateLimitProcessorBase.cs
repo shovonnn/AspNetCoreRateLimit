@@ -1,31 +1,35 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 
 namespace AspNetCoreRateLimit
 {
-    public class RateLimitCore
+    public abstract class RateLimitProcessorBase : IRateLimitProcessor
     {
         private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly bool _ipRateLimiting;
 
         private static readonly object _processLocker = new object();
+        readonly ITemporaryBlockStore _blockedListStore;
 
-        public RateLimitCore(bool ipRateLimiting,
+        public RateLimitProcessorBase(bool ipRateLimiting,
             RateLimitOptions options,
+                             ITemporaryBlockStore blockedListStore,
                              IRateLimitCounterStoreAsync counterStore)
         {
+            this._blockedListStore = blockedListStore;
             _ipRateLimiting = ipRateLimiting;
             _options = options;
             _counterStore = counterStore;
         }
 
-        public string ComputeCounterKey(ClientRequestIdentity requestIdentity, RateLimitRule rule)
+        public string ComputeCounterKey(ClientRequestIdentity requestIdentity, RateLimitRule rule = null)
         {
             var key = _ipRateLimiting ?
-                $"{_options.RateLimitCounterPrefix}_{requestIdentity.ClientIp}_{rule.Period}" :
-                $"{_options.RateLimitCounterPrefix}_{requestIdentity.ClientId}_{rule.Period}";
+                $"{_options.RateLimitCounterPrefix}_{requestIdentity.ClientIp}_{rule?.Period ?? "_"}" :
+                $"{_options.RateLimitCounterPrefix}_{requestIdentity.ClientId}_{rule?.Period ?? "_"}";
 
             if (_options.EnableEndpointRateLimiting)
             {
@@ -130,6 +134,29 @@ namespace AspNetCoreRateLimit
                 case "s": return TimeSpan.FromSeconds(double.Parse(value));
                 default: throw new FormatException($"{timeSpan} can't be converted to TimeSpan, unknown type {type}");
             }
+        }
+
+        public bool IsTemporaryBlocked(ClientRequestIdentity requestIdentity, out int retryAfter)
+        {
+            var key = ComputeCounterKey(requestIdentity);
+            var data = _blockedListStore.Get(key);
+            retryAfter = data.HasValue ? (int)Math.Max((((data.Value.Timestamp + data.Value.Duration) - DateTime.UtcNow).TotalSeconds), 1) : 0;
+            return data != null;
+        }
+
+        public void AddToTemporaryBlocked(ClientRequestIdentity requestIdentity, TimeSpan duration)
+        {
+            var key = ComputeCounterKey(requestIdentity);
+            _blockedListStore.Add(key, duration);
+        }
+
+        public abstract List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity);
+
+        public abstract bool IsWhitelisted(ClientRequestIdentity requestIdentity);
+
+        public Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
+        {
+            return ProcessRequest(requestIdentity, rule, 0);
         }
     }
 }

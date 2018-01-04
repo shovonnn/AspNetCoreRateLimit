@@ -15,6 +15,7 @@ namespace AspNetCoreRateLimit
             services.Configure<RateLimitOptions>(config);
 
             services.AddSingleton<IPolicyStore, MemoryCachePolicyStore>();
+            services.AddSingleton<ITemporaryBlockStore, MemoryCachedTemporaryBlockStore>();
 
             services.AddTransient<IpRateLimitProcessor>();
             services.AddTransient<ClientRateLimitProcessor>();

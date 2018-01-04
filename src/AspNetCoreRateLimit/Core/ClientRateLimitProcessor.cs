@@ -6,27 +6,23 @@ using Microsoft.Extensions.Options;
 
 namespace AspNetCoreRateLimit
 {
-    public class ClientRateLimitProcessor : IRateLimitProcessor
+    public class ClientRateLimitProcessor : RateLimitProcessorBase
     {
         private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly IPolicyStore _policyStore;
-        private readonly RateLimitCore _core;
-
-        private static readonly object _processLocker = new object();
 
         public ClientRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
-           IPolicyStore policyStore)
+                                        ITemporaryBlockStore blockListStore,
+                                        IPolicyStore policyStore) : base(false, options.Value, blockListStore, counterStore)
         {
             _options = options.Value;
             _counterStore = counterStore;
             _policyStore = policyStore;
-
-            _core = new RateLimitCore(false, options.Value, _counterStore);
         }
 
-        public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
+        public override List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
         {
             var limits = new List<RateLimitRule>();
             var policy = _policyStore.GetClientPolicies(identity.ClientId);
@@ -92,7 +88,7 @@ namespace AspNetCoreRateLimit
             foreach (var item in limits)
             {
                 //parse period text into time spans
-                item.PeriodTimespan = _core.ConvertToTimeSpan(item.Period);
+                item.PeriodTimespan = ConvertToTimeSpan(item.Period);
             }
 
             limits = limits.OrderBy(l => l.PeriodTimespan).ToList();
@@ -104,7 +100,7 @@ namespace AspNetCoreRateLimit
             return limits;
         }
 
-        public bool IsWhitelisted(ClientRequestIdentity requestIdentity)
+        public override bool IsWhitelisted(ClientRequestIdentity requestIdentity)
         {
             if (_options.ClientWhitelist != null && _options.ClientWhitelist.Contains(requestIdentity.ClientId))
             {
@@ -119,21 +115,6 @@ namespace AspNetCoreRateLimit
             }
 
             return false;
-        }
-
-        public Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
-        {
-            return _core.ProcessRequest(requestIdentity, rule);
-        }
-
-        public Task<RateLimitHeaders> GetRateLimitHeaders(ClientRequestIdentity requestIdentity, RateLimitRule rule)
-        {
-            return _core.GetRateLimitHeaders(requestIdentity, rule);
-        }
-
-        public string RetryAfterFrom(DateTime timestamp, RateLimitRule rule)
-        {
-            return _core.RetryAfterFrom(timestamp, rule);
         }
     }
 }

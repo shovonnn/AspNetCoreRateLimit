@@ -7,30 +7,26 @@ using Microsoft.Extensions.Options;
 
 namespace AspNetCoreRateLimit
 {
-    public class IpRateLimitProcessor : IRateLimitProcessor
+    public class IpRateLimitProcessor : RateLimitProcessorBase
     {
         private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly IPolicyStore _policyStore;
         private readonly IIpAddressParser _ipParser;
-        private readonly RateLimitCore _core;
-
-        private static readonly object _processLocker = new object();
 
         public IpRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
            IPolicyStore policyStore,
-           IIpAddressParser ipParser)
+                                    ITemporaryBlockStore blockListStore,
+                                    IIpAddressParser ipParser) : base(true, options.Value, blockListStore, counterStore)
         {
             _options = options.Value;
             _counterStore = counterStore;
             _policyStore = policyStore;
             _ipParser = ipParser;
-
-            _core = new RateLimitCore(true, options.Value, _counterStore);
         }
 
-        public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
+        public override List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
         {
             var limits = new List<RateLimitRule>();
 
@@ -104,7 +100,7 @@ namespace AspNetCoreRateLimit
             foreach (var item in limits)
             {
                 //parse period text into time spans
-                item.PeriodTimespan = _core.ConvertToTimeSpan(item.Period);
+                item.PeriodTimespan = ConvertToTimeSpan(item.Period);
             }
 
             limits = limits.OrderBy(l => l.PeriodTimespan).ToList();
@@ -116,7 +112,7 @@ namespace AspNetCoreRateLimit
             return limits;
         }
 
-        public bool IsWhitelisted(ClientRequestIdentity requestIdentity)
+        public override bool IsWhitelisted(ClientRequestIdentity requestIdentity)
         {
             if (_options.IpWhitelist != null && _ipParser.ContainsIp(_options.IpWhitelist, requestIdentity.ClientIp))
             {
@@ -136,21 +132,6 @@ namespace AspNetCoreRateLimit
             }
 
             return false;
-        }
-
-        public Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule)
-        {
-            return _core.ProcessRequest(requestIdentity, rule);
-        }
-
-        public Task<RateLimitHeaders> GetRateLimitHeaders(ClientRequestIdentity requestIdentity, RateLimitRule rule)
-        {
-            return _core.GetRateLimitHeaders(requestIdentity, rule);
-        }
-
-        public string RetryAfterFrom(DateTime timestamp, RateLimitRule rule)
-        {
-            return _core.RetryAfterFrom(timestamp, rule);
         }
     }
 }

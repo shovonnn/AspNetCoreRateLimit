@@ -11,5 +11,8 @@ namespace AspNetCoreRateLimit
         bool IsWhitelisted(ClientRequestIdentity requestIdentity);
         Task<RateLimitCounter> ProcessRequest(ClientRequestIdentity requestIdentity, RateLimitRule rule);
         string RetryAfterFrom(DateTime timestamp, RateLimitRule rule);
+
+        bool IsTemporaryBlocked(ClientRequestIdentity requestIdentity, out int retryAfter);
+        void AddToTemporaryBlocked(ClientRequestIdentity requestIdentity, TimeSpan duration);
     }
 }

@@ -48,6 +48,12 @@ namespace AspNetCoreRateLimit
                 return;
             }
 
+            if (_processor.IsTemporaryBlocked(identity, out var retryAfterSeconds))
+            {
+                await ReturnQuotaExceededResponse(httpContext, null, retryAfterSeconds.ToString());
+                return;
+            }
+
             var rules = _processor.GetMatchingRules(identity);
 
             foreach (var rule in rules)
@@ -69,6 +75,7 @@ namespace AspNetCoreRateLimit
                         //compute retry after value
                         var retryAfter = _processor.RetryAfterFrom(counter.Timestamp, rule);
 
+                        _processor.AddToTemporaryBlocked(identity, TimeSpan.FromSeconds(double.Parse(retryAfter)));
                         // log blocked request
                         LogBlockedRequest(httpContext, identity, counter, rule);
 
@@ -127,7 +134,7 @@ namespace AspNetCoreRateLimit
 
         public virtual Task ReturnQuotaExceededResponse(HttpContext httpContext, RateLimitRule rule, string retryAfter)
         {
-            var message = string.IsNullOrEmpty(_options.QuotaExceededMessage) ? $"API calls quota exceeded! maximum admitted {rule.Limit} per {rule.Period}." : _options.QuotaExceededMessage;
+            var message = string.IsNullOrEmpty(_options.QuotaExceededMessage) && rule != null ? $"API calls quota exceeded! maximum admitted {rule.Limit} per {rule.Period}." : _options.QuotaExceededMessage;
 
             if (!_options.DisableRateLimitHeaders)
             {
@@ -135,7 +142,7 @@ namespace AspNetCoreRateLimit
             }
 
             httpContext.Response.StatusCode = _options.HttpStatusCode;
-            return httpContext.Response.WriteAsync(message);
+            return httpContext.Response.WriteAsync(message ?? "API calls quota exceeded!");
         }
 
         public virtual void LogBlockedRequest(HttpContext httpContext, ClientRequestIdentity identity, RateLimitCounter counter, RateLimitRule rule)
