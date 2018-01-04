@@ -34,7 +34,7 @@ namespace AspNetCoreRateLimit
             if (timestamp == null || total_requ == null) return null;
             return new RateLimitCounter()
             {
-                Timestamp = DateTime.Parse(timestamp),
+                Timestamp = DateTime.Parse(timestamp).ToUniversalTime(),
                 TotalRequests = int.Parse(total_requ)
             };
         }

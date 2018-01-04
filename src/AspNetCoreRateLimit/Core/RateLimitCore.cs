@@ -111,10 +111,9 @@ namespace AspNetCoreRateLimit
 
         public string RetryAfterFrom(DateTime timestamp, RateLimitRule rule)
         {
-            var secondsPast = Convert.ToInt32((DateTime.UtcNow - timestamp).TotalSeconds);
-            var retryAfter = Convert.ToInt32(rule.PeriodTimespan.Value.TotalSeconds);
-            retryAfter = retryAfter > 1 ? retryAfter - secondsPast : 1;
-            return retryAfter.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var diff = (timestamp + rule.PeriodTimespan.Value) - DateTime.UtcNow;
+            var diffInSeconds = Math.Max(diff.TotalSeconds, 1);
+            return $"{diffInSeconds:F0}";
         }
 
         public TimeSpan ConvertToTimeSpan(string timeSpan)
