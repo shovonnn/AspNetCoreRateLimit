@@ -8,37 +8,30 @@ namespace AspNetCoreRateLimit
 {
     public static class StartupExtensions
     {
-        public static void AddRateLimiting(this IServiceCollection services, IConfiguration config)
+        public static void AddRateLimiting(this IServiceCollection services, IConfigurationSection config)
         {
             services.AddSingleton<IRateLimitCounterStoreAsync, RateLimitCounterStoreAsync>();
             services.AddMemoryCache();
-            if (config.GetSection("IpRateLimiting").GetValue<bool>("Enabled"))
-            {
-                services.Configure<IpRateLimitOptions>(config.GetSection("IpRateLimiting"));
+            services.Configure<RateLimitOptions>(config);
+            services.Configure<IpRateLimitPolicies>(config.GetSection("IpPolicies"));
+            services.Configure<ClientRateLimitPolicies>(config.GetSection("ClientPolicies"));
 
-                if (config.GetSection("IpRateLimitPolicies").GetValue<bool>("Enabled"))
-                    services.Configure<IpRateLimitPolicies>(config.GetSection("IpRateLimitPolicies"));
+            // inject counter and rules stores
+            services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
 
-                // inject counter and rules stores
-                services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-            }
-            if (config.GetSection("ClientRateLimiting").GetValue<bool>("Enabled"))
-            {
-                services.Configure<ClientRateLimitOptions>(config.GetSection("ClientRateLimiting"));
+            // inject counter and rules stores
+            services.AddSingleton<IClientPolicyStore, MemoryCacheClientPolicyStore>();
 
-                if (config.GetSection("ClientRateLimitPolicies").GetValue<bool>("Enabled"))
-                    services.Configure<ClientRateLimitPolicies>(config.GetSection("ClientRateLimitPolicies"));
-
-                // inject counter and rules stores
-                services.AddSingleton<IClientPolicyStore, MemoryCacheClientPolicyStore>();
-            }
+            services.AddTransient<IpRateLimitProcessor>();
+            services.AddTransient<ClientRateLimitProcessor>();
+            services.AddTransient<IIpAddressParser, ReversProxyIpParser>();
         }
-        public static void AddMemoryBasedRateLimit(this IServiceCollection services, IConfiguration config)
+        public static void AddMemoryBasedRateLimit(this IServiceCollection services, IConfigurationSection config)
         {
             services.AddRateLimiting(config);
             services.AddSingleton<ICacheClient, MemoryCacheClient>();
         }
-        public static void AddRedisBasedRateLimit(this IServiceCollection services, IConfiguration config, Func<ConnectionMultiplexer> redisFactory)
+        public static void AddRedisBasedRateLimit(this IServiceCollection services, IConfigurationSection config, Func<ConnectionMultiplexer> redisFactory)
         {
             services.AddRateLimiting(config);
             services.AddSingleton<ICacheClient>((arg) => new RedisCacheClient(redisFactory.Invoke()));

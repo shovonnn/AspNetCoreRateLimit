@@ -6,14 +6,14 @@ namespace AspNetCoreRateLimit
 {
     public class RateLimitCore
     {
-        private readonly RateLimitCoreOptions _options;
+        private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly bool _ipRateLimiting;
 
         private static readonly object _processLocker = new object();
 
         public RateLimitCore(bool ipRateLimiting,
-            RateLimitCoreOptions options,
+            RateLimitOptions options,
                              IRateLimitCounterStoreAsync counterStore)
         {
             _ipRateLimiting = ipRateLimiting;

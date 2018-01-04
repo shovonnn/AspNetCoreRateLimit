@@ -8,8 +8,8 @@ namespace AspNetCoreRateLimit
     {
         private readonly IDistributedCache _memoryCache;
 
-        public DistributedCacheClientPolicyStore(IDistributedCache memoryCache, 
-            IOptions<ClientRateLimitOptions> options = null, 
+        public DistributedCacheClientPolicyStore(IDistributedCache memoryCache,
+            IOptions<RateLimitOptions> options = null,
             IOptions<ClientRateLimitPolicies> policies = null)
         {
             _memoryCache = memoryCache;

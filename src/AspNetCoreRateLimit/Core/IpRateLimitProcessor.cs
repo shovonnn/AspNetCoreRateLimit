@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AspNetCoreRateLimit.Core;
+using Microsoft.Extensions.Options;
 
 namespace AspNetCoreRateLimit
 {
-    public class IpRateLimitProcessor
+    public class IpRateLimitProcessor : IRateLimitProcessor
     {
-        private readonly IpRateLimitOptions _options;
+        private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly IIpPolicyStore _policyStore;
         private readonly IIpAddressParser _ipParser;
@@ -16,17 +17,17 @@ namespace AspNetCoreRateLimit
 
         private static readonly object _processLocker = new object();
 
-        public IpRateLimitProcessor(IpRateLimitOptions options,
+        public IpRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
            IIpPolicyStore policyStore,
            IIpAddressParser ipParser)
         {
-            _options = options;
+            _options = options.Value;
             _counterStore = counterStore;
             _policyStore = policyStore;
             _ipParser = ipParser;
 
-            _core = new RateLimitCore(true, options, _counterStore);
+            _core = new RateLimitCore(true, options.Value, _counterStore);
         }
 
         public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
@@ -66,23 +67,23 @@ namespace AspNetCoreRateLimit
             limits = limits.GroupBy(l => l.Period).Select(l => l.OrderBy(x => x.Limit)).Select(l => l.First()).ToList();
 
             // search for matching general rules
-            if (_options.GeneralRules != null)
+            if (_options.IPGeneralRules != null)
             {
                 var matchingGeneralLimits = new List<RateLimitRule>();
                 if (_options.EnableEndpointRateLimiting)
                 {
                     // search for rules with endpoints like "*" and "*:/matching_path" in general rules
-                    var pathLimits = _options.GeneralRules.Where(l => $"*:{identity.Path}".ToLowerInvariant().Contains(l.Endpoint.ToLowerInvariant())).AsEnumerable();
+                    var pathLimits = _options.IPGeneralRules.Where(l => $"*:{identity.Path}".ToLowerInvariant().Contains(l.Endpoint.ToLowerInvariant())).AsEnumerable();
                     matchingGeneralLimits.AddRange(pathLimits);
 
                     // search for rules with endpoints like "matching_verb:/matching_path" in general rules
-                    var verbLimits = _options.GeneralRules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ToLowerInvariant().IsMatch(l.Endpoint.ToLowerInvariant())).AsEnumerable();
+                    var verbLimits = _options.IPGeneralRules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ToLowerInvariant().IsMatch(l.Endpoint.ToLowerInvariant())).AsEnumerable();
                     matchingGeneralLimits.AddRange(verbLimits);
                 }
                 else
                 {
                     //ignore endpoint rules and search for global rules in general rules
-                    var genericLimits = _options.GeneralRules.Where(l => l.Endpoint == "*").AsEnumerable();
+                    var genericLimits = _options.IPGeneralRules.Where(l => l.Endpoint == "*").AsEnumerable();
                     matchingGeneralLimits.AddRange(genericLimits);
                 }
 

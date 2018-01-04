@@ -2,14 +2,37 @@
 
 namespace AspNetCoreRateLimit
 {
-    public class RateLimitCoreOptions
+    public class RateLimitOptions
     {
-        public List<RateLimitRule> GeneralRules { get; set; }
+        /// <summary>
+        /// Gets or sets the HTTP header of the real ip header injected by reverse proxy, by default is X-Real-IP
+        /// </summary>
+        public string RealIpHeader { get; set; } = "X-Real-IP";
+
+        /// <summary>
+        /// Gets or sets the HTTP header that holds the client identifier, by default is X-ClientId
+        /// </summary>
+        public string ClientIdHeader { get; set; } = "X-ClientId";
+
+        /// <summary>
+        /// Gets or sets the policy prefix, used to compose the client policy cache key
+        /// </summary>
+        public string IpPolicyPrefix { get; set; } = "ippp";
+
+
+        /// <summary>
+        /// Gets or sets the policy prefix, used to compose the client policy cache key
+        /// </summary>
+        public string ClientPolicyPrefix { get; set; } = "crlp";
+
+        public List<RateLimitRule> IPGeneralRules { get; set; }
+        public List<RateLimitRule> ClientGeneralRules { get; set; }
 
         public List<string> EndpointWhitelist { get; set; }
 
+        public List<string> IpWhitelist { get; set; }
         public List<string> ClientWhitelist { get; set; }
-        
+
         /// <summary>
         /// Gets or sets the HTTP Status code returned when rate limiting occurs, by default value is set to 429 (Too Many Requests)
         /// </summary>

@@ -2,27 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 
 namespace AspNetCoreRateLimit
 {
-    public class ClientRateLimitProcessor
+    public class ClientRateLimitProcessor : IRateLimitProcessor
     {
-        private readonly ClientRateLimitOptions _options;
+        private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
         private readonly IClientPolicyStore _policyStore;
         private readonly RateLimitCore _core;
 
         private static readonly object _processLocker = new object();
 
-        public ClientRateLimitProcessor(ClientRateLimitOptions options,
+        public ClientRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
            IClientPolicyStore policyStore)
         {
-            _options = options;
+            _options = options.Value;
             _counterStore = counterStore;
             _policyStore = policyStore;
 
-            _core = new RateLimitCore(false, options, _counterStore);
+            _core = new RateLimitCore(false, options.Value, _counterStore);
         }
 
         public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
@@ -54,23 +55,23 @@ namespace AspNetCoreRateLimit
             limits = limits.GroupBy(l => l.Period).Select(l => l.OrderBy(x => x.Limit)).Select(l => l.First()).ToList();
 
             // search for matching general rules
-            if (_options.GeneralRules != null)
+            if (_options.ClientGeneralRules != null)
             {
                 var matchingGeneralLimits = new List<RateLimitRule>();
                 if (_options.EnableEndpointRateLimiting)
                 {
                     // search for rules with endpoints like "*" and "*:/matching_path" in general rules
-                    var pathLimits = _options.GeneralRules.Where(l => $"*:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
+                    var pathLimits = _options.ClientGeneralRules.Where(l => $"*:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
                     matchingGeneralLimits.AddRange(pathLimits);
 
                     // search for rules with endpoints like "matching_verb:/matching_path" in general rules
-                    var verbLimits = _options.GeneralRules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
+                    var verbLimits = _options.ClientGeneralRules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
                     matchingGeneralLimits.AddRange(verbLimits);
                 }
                 else
                 {
                     //ignore endpoint rules and search for global rules in general rules
-                    var genericLimits = _options.GeneralRules.Where(l => l.Endpoint == "*").AsEnumerable();
+                    var genericLimits = _options.ClientGeneralRules.Where(l => l.Endpoint == "*").AsEnumerable();
                     matchingGeneralLimits.AddRange(genericLimits);
                 }
 
