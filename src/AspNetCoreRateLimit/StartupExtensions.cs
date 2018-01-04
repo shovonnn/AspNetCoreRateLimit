@@ -13,14 +13,9 @@ namespace AspNetCoreRateLimit
             services.AddSingleton<IRateLimitCounterStoreAsync, RateLimitCounterStoreAsync>();
             services.AddMemoryCache();
             services.Configure<RateLimitOptions>(config);
-            services.Configure<IpRateLimitPolicies>(config.GetSection("IpPolicies"));
-            services.Configure<ClientRateLimitPolicies>(config.GetSection("ClientPolicies"));
 
             // inject counter and rules stores
-            services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-
-            // inject counter and rules stores
-            services.AddSingleton<IClientPolicyStore, MemoryCacheClientPolicyStore>();
+            services.AddSingleton<IPolicyStore, MemoryCachePolicyStore>();
 
             services.AddTransient<IpRateLimitProcessor>();
             services.AddTransient<ClientRateLimitProcessor>();

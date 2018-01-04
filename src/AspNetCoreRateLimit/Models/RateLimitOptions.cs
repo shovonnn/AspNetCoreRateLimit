@@ -14,16 +14,6 @@ namespace AspNetCoreRateLimit
         /// </summary>
         public string ClientIdHeader { get; set; } = "X-ClientId";
 
-        /// <summary>
-        /// Gets or sets the policy prefix, used to compose the client policy cache key
-        /// </summary>
-        public string IpPolicyPrefix { get; set; } = "ippp";
-
-
-        /// <summary>
-        /// Gets or sets the policy prefix, used to compose the client policy cache key
-        /// </summary>
-        public string ClientPolicyPrefix { get; set; } = "crlp";
 
         public List<RateLimitRule> IPGeneralRules { get; set; }
         public List<RateLimitRule> ClientGeneralRules { get; set; }
@@ -64,5 +54,7 @@ namespace AspNetCoreRateLimit
         /// Disables X-Rate-Limit and Rety-After headers
         /// </summary>
         public bool DisableRateLimitHeaders { get; set; }
+
+        public List<RateLimitPolicy> Policies { get; set; }
     }
 }

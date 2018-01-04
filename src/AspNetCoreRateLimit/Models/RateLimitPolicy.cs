@@ -2,8 +2,9 @@
 
 namespace AspNetCoreRateLimit
 {
-    public class IpRateLimitPolicy
+    public class RateLimitPolicy
     {
+        public string ClientId { get; set; }
         public string Ip { get; set; }
         public List<RateLimitRule> Rules { get; set; }
     }

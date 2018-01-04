@@ -10,14 +10,14 @@ namespace AspNetCoreRateLimit
     {
         private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
-        private readonly IClientPolicyStore _policyStore;
+        private readonly IPolicyStore _policyStore;
         private readonly RateLimitCore _core;
 
         private static readonly object _processLocker = new object();
 
         public ClientRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
-           IClientPolicyStore policyStore)
+           IPolicyStore policyStore)
         {
             _options = options.Value;
             _counterStore = counterStore;
@@ -29,24 +29,25 @@ namespace AspNetCoreRateLimit
         public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
         {
             var limits = new List<RateLimitRule>();
-            var policy = _policyStore.Get($"{_options.ClientPolicyPrefix}_{identity.ClientId}");
+            var policy = _policyStore.GetClientPolicies(identity.ClientId);
 
             if (policy != null)
             {
+                var rules = policy.SelectMany(_ => _.Rules).AsEnumerable();
                 if (_options.EnableEndpointRateLimiting)
                 {
                     // search for rules with endpoints like "*" and "*:/matching_path"
-                    var pathLimits = policy.Rules.Where(l => $"*:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
+                    var pathLimits = rules.Where(l => $"*:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
                     limits.AddRange(pathLimits);
 
                     // search for rules with endpoints like "matching_verb:/matching_path"
-                    var verbLimits = policy.Rules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
+                    var verbLimits = rules.Where(l => $"{identity.HttpVerb}:{identity.Path}".ContainsIgnoreCase(l.Endpoint)).AsEnumerable();
                     limits.AddRange(verbLimits);
                 }
                 else
                 {
                     //ignore endpoint rules and search for global rules only
-                    var genericLimits = policy.Rules.Where(l => l.Endpoint == "*").AsEnumerable();
+                    var genericLimits = rules.Where(l => l.Endpoint == "*").AsEnumerable();
                     limits.AddRange(genericLimits);
                 }
             }

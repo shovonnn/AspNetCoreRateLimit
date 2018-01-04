@@ -11,7 +11,7 @@ namespace AspNetCoreRateLimit
     {
         private readonly RateLimitOptions _options;
         private readonly IRateLimitCounterStoreAsync _counterStore;
-        private readonly IIpPolicyStore _policyStore;
+        private readonly IPolicyStore _policyStore;
         private readonly IIpAddressParser _ipParser;
         private readonly RateLimitCore _core;
 
@@ -19,7 +19,7 @@ namespace AspNetCoreRateLimit
 
         public IpRateLimitProcessor(IOptions<RateLimitOptions> options,
            IRateLimitCounterStoreAsync counterStore,
-           IIpPolicyStore policyStore,
+           IPolicyStore policyStore,
            IIpAddressParser ipParser)
         {
             _options = options.Value;
@@ -33,12 +33,13 @@ namespace AspNetCoreRateLimit
         public List<RateLimitRule> GetMatchingRules(ClientRequestIdentity identity)
         {
             var limits = new List<RateLimitRule>();
-            var policies = _policyStore.Get($"{_options.IpPolicyPrefix}");
 
-            if (policies != null && policies.IpRules != null && policies.IpRules.Any())
+            // search for rules with IP intervals containing client IP
+            var policies = _policyStore.GetIpPolicies(identity.ClientIp);
+
+            if (policies != null && policies.Any())
             {
-                // search for rules with IP intervals containing client IP
-                var matchPolicies = policies.IpRules.Where(r => _ipParser.ContainsIp(r.Ip, identity.ClientIp)).AsEnumerable();
+                var matchPolicies = policies.AsEnumerable();
                 var rules = new List<RateLimitRule>();
                 foreach (var item in matchPolicies)
                 {
